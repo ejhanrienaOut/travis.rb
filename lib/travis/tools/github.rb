@@ -278,11 +278,22 @@ module Travis
         end
 
         def file(path, default = nil)
-          path        &&= File.expand_path(path)
+          gpg_path    = File.expand_path("#{path}.gpg")
+          if gpg_path
+            path      &&= gpg_path
+          else
+            path      &&= File.expand_path(path)
+          end
           @file       ||= {}
           @file[path] ||= if path and File.readable?(path)
             debug "reading #{path}"
-            yield File.read(path)
+            if gpg_path
+              require "gpgme"
+              crypto = GPGME::Crypto.new
+              yield crypto.decrypt(File.open(path)).read
+            else
+              yield File.read(path)
+            end
           end
           @file[path] || default
         rescue => e
